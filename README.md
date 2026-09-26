@@ -25,8 +25,8 @@ PC Engine CD audio tracks.
 | `SEGACD-CHD-CONVERTER.bat` | Same, for Sega CD / Mega CD. |
 | `PCECD-APE-to-WAV.bat` | Converts `.ape` audio tracks back to `.wav` so PC Engine CD images become playable (and `.chd`-compressible). |
 
-There are also two helper scripts under `Bash/` meant to run **on the Pi
-itself**, not on Windows (see [Bash helpers](#bash-helpers)).
+The four CHD converters also have Bash ports under `Bash/`, plus two helper
+scripts meant to run **on the Pi itself** (see [Bash scripts](#bash-scripts)).
 
 ---
 
@@ -125,9 +125,12 @@ for every disc image under the folder (recursively):
 1. **Skip** it if a matching `.chd` already exists on the Pi (logged as `[INFO]`).
 2. Otherwise **extract** any `.7z`/`.zip`/`.rar` archive first (via 7-Zip).
 3. **Compress** the `.cue`/`.gdi`/`.bin`/`.iso` set into a single `.chd` with `chdman`.
-4. **Copy** the `.chd` to the matching Pi share and verify it landed
+4. **Verify** the new `.chd` with `chdman verify`. If that fails the file is
+   logged as `[ERROR]`, left where it is, and **not** copied; the source files
+   are kept.
+5. **Copy** the `.chd` to the matching Pi share and verify it landed
    (`[INFO]` on success, `[ERROR]` on failure).
-5. **Only after a verified copy**, delete the now-redundant extracted source
+6. **Only after a verified copy**, delete the now-redundant extracted source
    files. (A failed copy leaves your originals untouched.)
 
 Everything is mirrored to `logs/<script-name>-*.log`.
@@ -172,7 +175,14 @@ retro-tools/
 │  ├─ bios-checksums.bat      known-good BIOS hash table
 │  ├─ header.bat              prints the on-screen banner
 │  └─ log.bat                 sets the rotating log filename
-├─ Bash/                      helper scripts that run ON the Pi
+├─ Bash/
+│  ├─ cue2chd.sh              generic .cue/.gdi/.iso -> .chd engine (Linux/macOS)
+│  ├─ DC-CUE-or-GDI-to-CHD.sh ┐
+│  ├─ PSX-CUE-to-CHD.sh       │  Bash ports of the converters above
+│  ├─ PCECD-CUE-to-CHD.sh     │  (thin wrappers around cue2chd.sh)
+│  ├─ SEGACD-CHD-CONVERTER.sh ┘
+│  ├─ config.sh               settings for the Bash converters (edit or override via env)
+│  └─ *.sh                    helper scripts that run ON the Pi
 └─ logs/                      created at setup; per-script run logs
 ```
 
@@ -183,10 +193,59 @@ picks a rotating log file, 0–4) and `conf\header.bat` (the banner). Logs land 
 
 ---
 
-## Bash helpers
+## Bash scripts
 
-These live in [`Bash/`](Bash/) and are meant to run **on the RetroPie**, not on
-Windows:
+### Disc-image → CHD converters (Linux / macOS / the Pi itself)
+
+Each `*-to-CHD.bat` converter has a Bash equivalent in [`Bash/`](Bash/) with
+the same name and behaviour (same `chdman createcd` call, same recursive
+`.cue`/`.gdi`/`.iso` globbing, same `<name>.chd` output next to the source,
+same skip-if-already-on-the-Pi / extract-archives-first / `chdman verify` /
+delete-extracted-files-only-after-a-good-copy flow). They need `bash` 4.4+, `chdman` (ships with
+MAME; on Debian/Raspberry Pi OS `apt install mame-tools`) and, for `.7z`/`.zip`/
+`.rar` inputs, `7z` (`apt install p7zip-full`).
+
+```sh
+Bash/PSX-CUE-to-CHD.sh ~/roms/psx
+Bash/DC-CUE-or-GDI-to-CHD.sh ~/roms/dreamcast
+Bash/PCECD-CUE-to-CHD.sh ~/roms/pcengine
+Bash/SEGACD-CHD-CONVERTER.sh ~/roms/segacd
+```
+
+Settings live in [`Bash/config.sh`](Bash/config.sh) (the equivalent of
+`conf/config.bat`). By default the finished `.chd` files are moved into
+`$HOME/RetroPie/roms/<system>`, which is right when you run the scripts on the
+Pi; from another machine set `RPI_ROMS` to wherever you mounted the Pi's
+`roms` share, or pass `-d`:
+
+```sh
+RPI_ROMS=/mnt/retropie/roms Bash/PSX-CUE-to-CHD.sh ~/roms/psx
+Bash/PSX-CUE-to-CHD.sh -d /mnt/retropie/roms/psx ~/roms/psx
+```
+
+`chdman` is looked up on `$PATH`; point `CHDMAN=/path/to/chdman` at it if it
+lives elsewhere (likewise `SEVENZIP` for 7z). Useful flags, all passed through
+to the underlying `cue2chd.sh`: `-y` skips the `(c)onvert or e(x)it` prompt,
+`-n` is a dry run that prints the commands instead of running them, `-k` keeps
+extracted archive contents, and `-h` shows the full usage. Logs go to
+`logs/<script>-<0-4>.log` like the batch scripts.
+
+`cue2chd.sh` can also be used directly for any system:
+`Bash/cue2chd.sh -e cue,gdi -d /mnt/retropie/roms/dreamcast ~/roms/dreamcast`.
+
+Two small differences from the batch versions, both deliberate: archives are
+extracted next to the archive (not into the root of the ROM folder), and only
+the files that came out of an archive are deleted afterwards (the batch scripts
+delete every `.cue`/`.bin` under the folder once a copy succeeds).
+
+**Windows-only scripts.** `bin\RT-Retrieve-Tools.bat` (downloads the tools
+with `bitsadmin`/`wget.exe` and runs the 7-Zip installer) and
+`RT-BIOS-CHECKER.bat` (relies on the bundled `crc32.exe`/`md5.exe`) are
+Windows-only and have no Bash port; on Linux install `chdman`, `7z` and
+`ffmpeg` from your package manager and use `crc32`/`md5sum` for the BIOS
+hashes. `PCECD-APE-to-WAV.bat` is covered by `PCE - APE to WAV.sh` below.
+
+### Helpers that run on the Pi
 
 - `PCE - APE to WAV.sh` — the Linux equivalent of the APE→WAV converter, using
   `ffmpeg` and `find`.
@@ -219,7 +278,11 @@ Windows:
 
 ## License
 
-GPL-3.0.
+<!-- PLACEHOLDER(greg): choose license -->
+
+The README has said GPL-3.0, but the repo has no license text yet. See
+[`LICENSE`](LICENSE), which is a placeholder until the license is confirmed and
+its full text is added.
 
 > If this breaks everything in your house, sets your car on fire, or kicks your
 > dog, I am in no way responsible. Use at your own risk.

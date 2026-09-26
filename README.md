@@ -219,7 +219,11 @@ Windows:
 
 ## License
 
-GPL-3.0.
+<!-- PLACEHOLDER(greg): choose license -->
+
+The README has said GPL-3.0, but the repo has no license text yet. See
+[`LICENSE`](LICENSE), which is a placeholder until the license is confirmed and
+its full text is added.
 
 > If this breaks everything in your house, sets your car on fire, or kicks your
 > dog, I am in no way responsible. Use at your own risk.

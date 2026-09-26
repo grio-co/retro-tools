@@ -42,15 +42,21 @@ for /r %1 %%z in (*.7z, *.zip, *.rar) DO (
 		) else (
 		7z x -y "%%z" -o%1
 		bin\chdman.exe createcd -i "%%~dz%%~pz%%~nz%%~xz" -o "%%~dz%%~pz%%~nz.chd" --force
-		echo Copying %%~nz.chd to %rpidc%
-		move /y "%%~dz%%~pz%%~nz.chd" "%rpidc%"
-		if exist "%rpidc%\%%~nz.chd" ( echo !DATE! !TIME! - [INFO] - Copied %%~nz.chd to %rpidc% >> %log% )
-		if not exist "%rpidc%\%%~nz.chd" ( echo !DATE! !TIME! - [ERROR] - Copy failed: %%~nz.chd to %rpidc% >> %log% )
-		if exist "%rpidc%\%%~nz.chd" (
-			for /r %1 %%b in (*.cue, *.bin) DO (
-				del %%b
-				echo Deleted %%b
-				set "b="
+		bin\chdman.exe verify -i "%%~dz%%~pz%%~nz.chd"
+		if !ERRORLEVEL! NEQ 0 (
+			echo [ERROR] Verification failed: %%~dz%%~pz%%~nz.chd - not copied, source files kept
+			echo !DATE! !TIME! - [ERROR] - Verification failed: %%~dz%%~pz%%~nz.chd >> %log%
+			) else (
+			echo Copying %%~nz.chd to %rpidc%
+			move /y "%%~dz%%~pz%%~nz.chd" "%rpidc%"
+			if exist "%rpidc%\%%~nz.chd" ( echo !DATE! !TIME! - [INFO] - Copied %%~nz.chd to %rpidc% >> %log% )
+			if not exist "%rpidc%\%%~nz.chd" ( echo !DATE! !TIME! - [ERROR] - Copy failed: %%~nz.chd to %rpidc% >> %log% )
+			if exist "%rpidc%\%%~nz.chd" (
+				for /r %1 %%b in (*.cue, *.bin) DO (
+					del %%b
+					echo Deleted %%b
+					set "b="
+				)
 			)
 		)
 		)
@@ -63,9 +69,15 @@ for /r %1 %%z in (*.cue, *.gdi) DO (
 		 echo !DATE! !TIME! - [INFO] - %%~nz.chd available >> %log%
 		) else (
 		bin\chdman.exe createcd -i "%%~dz%%~pz%%~nz%%~xz" -o "%%~dz%%~pz%%~nz.chd" --force
-		echo Copying %%~nz.chd to %rpidc%
-		move /y "%%~dz%%~pz%%~nz.chd" "%rpidc%"
-		if exist "%rpidc%\%%~nz.chd" ( echo !DATE! !TIME! - [INFO] - Copied %%~nz.chd to %rpidc% >> %log% )
-		if not exist "%rpidc%\%%~nz.chd" ( echo !DATE! !TIME! - [ERROR] - Copy failed: %%~nz.chd to %rpidc% >> %log% )
+		bin\chdman.exe verify -i "%%~dz%%~pz%%~nz.chd"
+		if !ERRORLEVEL! NEQ 0 (
+			echo [ERROR] Verification failed: %%~dz%%~pz%%~nz.chd - not copied, source files kept
+			echo !DATE! !TIME! - [ERROR] - Verification failed: %%~dz%%~pz%%~nz.chd >> %log%
+			) else (
+			echo Copying %%~nz.chd to %rpidc%
+			move /y "%%~dz%%~pz%%~nz.chd" "%rpidc%"
+			if exist "%rpidc%\%%~nz.chd" ( echo !DATE! !TIME! - [INFO] - Copied %%~nz.chd to %rpidc% >> %log% )
+			if not exist "%rpidc%\%%~nz.chd" ( echo !DATE! !TIME! - [ERROR] - Copy failed: %%~nz.chd to %rpidc% >> %log% )
+			)
 		)
 	)

@@ -9,7 +9,9 @@
 # For every matching image under ROMDIR (recursively) it will:
 #   1. skip the image if <dest>/<name>.chd already exists,
 #   2. otherwise run  chdman createcd -i <image> -o <image dir>/<name>.chd --force
-#   3. move the .chd to the destination folder (when one is given).
+#   3. check the result with  chdman verify -i <name>.chd  (a failure is logged
+#      as [ERROR] and the file is neither copied nor its sources deleted),
+#   4. move the .chd to the destination folder (when one is given).
 # Archives (.7z/.zip/.rar) are extracted next to themselves first (with 7z);
 # the extracted files are deleted once every image inside the archive has been
 # converted and copied successfully (pass -k to keep them).
@@ -151,6 +153,10 @@ convert_image() {
 		log ERROR "chdman createcd failed: $src"
 		return 1
 	fi
+	if ! run "$CHDMAN" verify -i "$out"; then
+		log ERROR "chdman verify failed: $out - not copied, source files kept"
+		return 1
+	fi
 
 	if [[ -n $DEST ]]; then
 		printf 'Copying %s.chd to %s\n' "$name" "$DEST"
@@ -206,6 +212,7 @@ process_archive() {
 
 	local ok=1 img f
 	for img in "${images[@]}"; do
+		HANDLED["$img"]=1
 		convert_image "$img" || ok=0
 	done
 	if ((ok && !KEEP_EXTRACTED && !DRY_RUN)); then
@@ -277,6 +284,7 @@ main() {
 	CONVERTED=0
 	SKIPPED=0
 	FAILED=0
+	declare -A HANDLED=()
 	local path
 
 	# Compressed files first (like the batch scripts), then plain images.
@@ -285,6 +293,7 @@ main() {
 	done < <(find "$ROMDIR" -type f \( -iname '*.7z' -o -iname '*.zip' -o -iname '*.rar' \) -print0 | sort -z)
 
 	while IFS= read -r -d '' path; do
+		[[ -z ${HANDLED[$path]:-} ]] || continue # already done in the archive pass
 		convert_image "$path" || FAILED=$((FAILED + 1))
 	done < <(find "$ROMDIR" -type f \( "${find_args[@]}" \) -print0 | sort -z)
 

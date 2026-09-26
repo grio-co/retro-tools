@@ -125,9 +125,12 @@ for every disc image under the folder (recursively):
 1. **Skip** it if a matching `.chd` already exists on the Pi (logged as `[INFO]`).
 2. Otherwise **extract** any `.7z`/`.zip`/`.rar` archive first (via 7-Zip).
 3. **Compress** the `.cue`/`.gdi`/`.bin`/`.iso` set into a single `.chd` with `chdman`.
-4. **Copy** the `.chd` to the matching Pi share and verify it landed
+4. **Verify** the new `.chd` with `chdman verify`. If that fails the file is
+   logged as `[ERROR]`, left where it is, and **not** copied; the source files
+   are kept.
+5. **Copy** the `.chd` to the matching Pi share and verify it landed
    (`[INFO]` on success, `[ERROR]` on failure).
-5. **Only after a verified copy**, delete the now-redundant extracted source
+6. **Only after a verified copy**, delete the now-redundant extracted source
    files. (A failed copy leaves your originals untouched.)
 
 Everything is mirrored to `logs/<script-name>-*.log`.
@@ -197,8 +200,8 @@ picks a rotating log file, 0–4) and `conf\header.bat` (the banner). Logs land 
 Each `*-to-CHD.bat` converter has a Bash equivalent in [`Bash/`](Bash/) with
 the same name and behaviour (same `chdman createcd` call, same recursive
 `.cue`/`.gdi`/`.iso` globbing, same `<name>.chd` output next to the source,
-same skip-if-already-on-the-Pi / extract-archives-first / delete-extracted-
-files-only-after-a-good-copy flow). They need `bash` 4.4+, `chdman` (ships with
+same skip-if-already-on-the-Pi / extract-archives-first / `chdman verify` /
+delete-extracted-files-only-after-a-good-copy flow). They need `bash` 4.4+, `chdman` (ships with
 MAME; on Debian/Raspberry Pi OS `apt install mame-tools`) and, for `.7z`/`.zip`/
 `.rar` inputs, `7z` (`apt install p7zip-full`).
 
